@@ -22,6 +22,5 @@ public class Order
     public string? SessionId { get; set; }
 
     public DateTime CreatedAt { get; set; }
-
     public virtual ICollection<OrderHistory> History { get; set; } = new List<OrderHistory>();
 }

@@ -40,7 +40,7 @@ public class OrderSessionService : IOrderSessionService
 
     #region Session Management (Redis)
 
-    public async Task UpdateOrderStateInSessionAsync(string sessionId, OrderStateDto orderState, CancellationToken ct = default)
+    public async Task<PureDelivery.Shared.Contracts.DTOs.SessionDTO.SessionDto> UpdateOrderStateInSessionAsync(string sessionId, OrderStateDto orderState, CancellationToken ct = default)
     {
         _logger.LogInformation("Updating session {SessionId} for restaurant {RestaurantId}", sessionId, orderState.RestaurantId);
 
@@ -62,6 +62,8 @@ public class OrderSessionService : IOrderSessionService
 
         if (!await _sessionService.SaveSessionAsync(session))
             throw new OrderException("SESSION_SAVE_FAILED", "Failed to persist session", 500);
+
+        return session;
     }
 
     public async Task<OrderStateDto?> GetOrderStateFromSessionAsync(string sessionId, string? restaurantId = null, CancellationToken ct = default)
@@ -73,6 +75,11 @@ public class OrderSessionService : IOrderSessionService
             return session.OrderStates.TryGetValue(restaurantId, out var state) ? state : null;
 
         return session.OrderStates.Values.OrderByDescending(x => x.LastUpdated).FirstOrDefault();
+    }
+
+    public async Task<PureDelivery.Shared.Contracts.DTOs.SessionDTO.SessionDto?> GetSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        return await _sessionService.GetSessionAsync(sessionId);
     }
 
     #endregion

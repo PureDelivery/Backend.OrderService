@@ -77,15 +77,18 @@ public class OrderService : IOrderService
         _logger.LogInformation("Updating status for {OrderId}: {Old} -> {New}", orderId, order.Status, newStatus);
 
         order.Status = newStatus;
+
         order.History.Add(new OrderHistory
         {
+            OrderId = order.Id,
             Status = newStatus,
             ChangedAt = DateTime.UtcNow,
-            ChangedBy = "Operator", // В будущем подтянем из контекста
+            ChangedBy = "Operator",
             Comment = comment
         });
 
         await _orderRepository.UpdateAsync(order, ct);
+
         return BaseResponse<OrderDto>.Success(_mapper.MapToDto(order));
     }
 }

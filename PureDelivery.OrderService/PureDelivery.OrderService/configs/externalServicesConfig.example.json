@@ -1,0 +1,12 @@
+﻿{
+  "ExternalServices": {
+    "RestaurantService": {
+      "BaseUrl": "https://localhost:7292/",
+      "GetRestaurantEndpoint": "api/v1/restaurant/Restaurant"
+    },
+    "CatalogService": {
+      "BaseUrl": "https://localhost:7292/",
+      "GetMenuItemsBulkEndpoint": "api/v1/restaurant/Menu/items/bulk"
+    }
+  }
+}

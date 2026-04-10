@@ -1,0 +1,7 @@
+﻿{
+  "timeoutSeconds": 30,
+  "userAgent": "",
+  "validateSslCertificates": true,
+  "maxRetryAttempts": 3,
+  "retryDelaySeconds": 1
+}

@@ -13,59 +13,29 @@ public class OrderMapper : IOrderMapper
         {
             Id = order.Id,
             CustomerId = order.CustomerId,
-            CustomerName = order.CustomerName,
-            CustomerEmail = order.CustomerEmail,
             RestaurantId = order.RestaurantId,
             RestaurantName = order.RestaurantName,
-            Items = order.Items.Select(MapItemToDto).ToList(),
-            DeliveryAddressId = order.DeliveryAddressId,
-            DeliveryAddress = order.DeliveryAddress,
-            DeliveryLatitude = order.DeliveryLatitude,
-            DeliveryLongitude = order.DeliveryLongitude,
-            DeliveryInstructions = order.DeliveryInstructions,
-            PaymentId = order.PaymentId,
-            PaymentMethod = order.PaymentMethod,
-            PaymentStatus = order.PaymentStatus,
-            CourierId = order.CourierId,
-            CourierName = order.CourierName,
-            Status = order.Status,
-            DeliveryStatus = order.DeliveryStatus,
-            SubTotal = order.SubTotal,
-            DeliveryFee = order.DeliveryFee,
-            Tax = order.Tax,
-            Discount = order.Discount,
-            TotalAmount = order.TotalAmount,
-            CreatedAt = order.CreatedAt,
-            UpdatedAt = order.UpdatedAt,
-            ConfirmedAt = order.ConfirmedAt,
-            PreparationStartedAt = order.PreparationStartedAt,
-            ReadyForPickupAt = order.ReadyForPickupAt,
-            PickedUpAt = order.PickedUpAt,
-            DeliveredAt = order.DeliveredAt,
-            CancelledAt = order.CancelledAt,
-            EstimatedPreparationMinutes = order.EstimatedPreparationMinutes,
-            EstimatedDeliveryMinutes = order.EstimatedDeliveryMinutes,
             SessionId = order.SessionId,
-            SpecialInstructions = order.SpecialInstructions,
-            CancellationReason = order.CancellationReason
-        };
-    }
+            PaymentId = order.PaymentId,
+            Status = order.Status,
+            PaymentStatus = order.PaymentStatus,
+            CreatedAt = order.CreatedAt,
 
-    public Order MapFromCreateRequest(CreateOrderRequest request)
-    {
-        var order = new Order
-        {
-            CustomerId = request.CustomerId,
-            RestaurantId = request.RestaurantId,
-            DeliveryAddressId = request.DeliveryAddressId,
-            Items = request.Items.Select(MapItemFromRequest).ToList(),
-            DeliveryInstructions = request.DeliveryInstructions,
-            SpecialInstructions = request.SpecialInstructions,
-            SessionId = request.SessionId,
-            Status = OrderStatus.Cart
-        };
+            // Мапим из вложенного объекта Money
+            SubTotal = order.Money.SubTotal,
+            DeliveryFee = order.Money.DeliveryFee,
+            Tax = order.Money.Tax,
+            Discount = order.Money.Discount,
+            TotalAmount = order.Money.TotalAmount,
 
-        return order;
+            // Мапим из вложенного объекта DeliveryAddress (AddressSnapshot)
+            DeliveryAddress = order.DeliveryAddress.FullAddressString,
+            DeliveryLatitude = order.DeliveryAddress.Latitude,
+            DeliveryLongitude = order.DeliveryAddress.Longitude,
+
+            Items = order.Items.Select(MapItemToDto).ToList()
+            // Убрал CustomerName, Email и прочее, так как в твоей новой модели Order их нет
+        };
     }
 
     private OrderItemDto MapItemToDto(OrderItem item)
@@ -79,8 +49,8 @@ public class OrderMapper : IOrderMapper
             UnitPrice = item.UnitPrice,
             Quantity = item.Quantity,
             TotalPrice = item.TotalPrice,
-            SelectedOptions = item.SelectedOptions.Select(MapOptionToDto).ToList(),
-            SpecialInstructions = item.SpecialInstructions
+            SpecialInstructions = item.SpecialInstructions,
+            SelectedOptions = item.SelectedOptions.Select(MapOptionToDto).ToList()
         };
     }
 
@@ -93,7 +63,22 @@ public class OrderMapper : IOrderMapper
             OptionName = option.OptionName,
             ChoiceId = option.ChoiceId,
             ChoiceName = option.ChoiceName,
-            AdditionalPrice = option.AdditionalPrice
+            AdditionalPrice = option.AdditionalPrice ?? 0
+        };
+    }
+
+    // Этот метод теперь почти не нужен, так как мы создаем заказ через OrderSessionService
+    // Но если оставляешь, мапь только то, что есть в модели
+    public Order MapFromCreateRequest(CreateOrderRequest request)
+    {
+        return new Order
+        {
+            CustomerId = request.CustomerId,
+            RestaurantId = request.RestaurantId,
+            SessionId = request.SessionId,
+            Status = OrderStatus.Cart,
+            CreatedAt = DateTime.UtcNow,
+            Items = request.Items.Select(MapItemFromRequest).ToList()
         };
     }
 
@@ -117,4 +102,3 @@ public class OrderMapper : IOrderMapper
         };
     }
 }
-

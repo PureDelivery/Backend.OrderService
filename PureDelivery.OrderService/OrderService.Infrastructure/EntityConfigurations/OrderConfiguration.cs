@@ -2,106 +2,52 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using OrderService.Domain.Entities;
 
-namespace OrderService.Infrastructure.EntityConfigurations;
-
 public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
     {
         builder.ToTable("Orders");
-
         builder.HasKey(o => o.Id);
 
-        builder.Property(o => o.Id)
-            .IsRequired();
+        builder.Property(o => o.RestaurantName).IsRequired().HasMaxLength(200);
+        builder.Property(o => o.SessionId).HasMaxLength(200);
+        builder.Property(o => o.CreatedAt).IsRequired();
 
-        builder.Property(o => o.CustomerId)
-            .IsRequired();
+        // Конфигурация Money как Owned Type
+        builder.OwnsOne(o => o.Money, m =>
+        {
+            m.Property(p => p.SubTotal).HasColumnName("SubTotal").HasPrecision(18, 2);
+            m.Property(p => p.DeliveryFee).HasColumnName("DeliveryFee").HasPrecision(18, 2);
+            m.Property(p => p.Tax).HasColumnName("Tax").HasPrecision(18, 2);
+            m.Property(p => p.Discount).HasColumnName("Discount").HasPrecision(18, 2);
+            m.Property(p => p.TotalAmount).HasColumnName("TotalAmount").HasPrecision(18, 2);
+        });
 
-        builder.Property(o => o.CustomerName)
-            .IsRequired()
-            .HasMaxLength(200);
+        // Конфигурация Address как Owned Type
+        builder.OwnsOne(o => o.DeliveryAddress, a =>
+        {
+            a.Property(p => p.FullAddressString).HasColumnName("DeliveryAddress").HasMaxLength(500);
+            a.Property(p => p.Latitude).HasColumnName("DeliveryLatitude").HasPrecision(18, 10);
+            a.Property(p => p.Longitude).HasColumnName("DeliveryLongitude").HasPrecision(18, 10);
+            a.Property(p => p.City).HasColumnName("DeliveryCity").HasMaxLength(100);
+            a.Property(p => p.Building).HasColumnName("DeliveryBuilding").HasMaxLength(100);
+            a.Property(p => p.Apartment).HasColumnName("DeliveryApartment").HasMaxLength(50);
+            a.Property(p => p.Floor).HasColumnName("DeliveryFloor").HasMaxLength(20);
+        });
 
-        builder.Property(o => o.CustomerEmail)
-            .IsRequired()
-            .HasMaxLength(200);
+        // Enums как строки
+        builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(50);
+        builder.Property(o => o.PaymentStatus).HasConversion<string>().HasMaxLength(50);
 
-        builder.Property(o => o.CustomerPhone)
-            .HasMaxLength(50);
+        // Связи
+        builder.HasMany(o => o.Items)
+            .WithOne(i => i.Order)
+            .HasForeignKey(i => i.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Property(o => o.RestaurantId)
-            .IsRequired();
-
-        builder.Property(o => o.RestaurantName)
-            .IsRequired()
-            .HasMaxLength(200);
-
-        builder.Property(o => o.DeliveryAddress)
-            .IsRequired()
-            .HasMaxLength(500);
-
-        builder.Property(o => o.DeliveryLatitude)
-            .HasPrecision(18, 8);
-
-        builder.Property(o => o.DeliveryLongitude)
-            .HasPrecision(18, 8);
-
-        builder.Property(o => o.DeliveryInstructions)
-            .HasMaxLength(1000);
-
-        builder.Property(o => o.PaymentMethod)
-            .IsRequired();
-
-        builder.Property(o => o.PaymentStatus)
-            .IsRequired();
-
-        builder.Property(o => o.Status)
-            .IsRequired();
-
-        builder.Property(o => o.DeliveryStatus)
-            .IsRequired();
-
-        builder.Property(o => o.SubTotal)
-            .HasPrecision(18, 2)
-            .IsRequired();
-
-        builder.Property(o => o.DeliveryFee)
-            .HasPrecision(18, 2)
-            .IsRequired();
-
-        builder.Property(o => o.Tax)
-            .HasPrecision(18, 2)
-            .IsRequired();
-
-        builder.Property(o => o.Discount)
-            .HasPrecision(18, 2)
-            .IsRequired();
-
-        builder.Property(o => o.TotalAmount)
-            .HasPrecision(18, 2)
-            .IsRequired();
-
-        builder.Property(o => o.CreatedAt)
-            .IsRequired();
-
-        builder.Property(o => o.UpdatedAt)
-            .IsRequired();
-
-        builder.Property(o => o.SessionId)
-            .HasMaxLength(200);
-
-        builder.Property(o => o.SpecialInstructions)
-            .HasMaxLength(1000);
-
-        builder.Property(o => o.CancellationReason)
-            .HasMaxLength(500);
-
-        // Indexes
-        builder.HasIndex(o => o.CustomerId);
-        builder.HasIndex(o => o.RestaurantId);
-        builder.HasIndex(o => o.Status);
-        builder.HasIndex(o => o.CreatedAt);
-        builder.HasIndex(o => o.SessionId);
+        builder.HasMany(o => o.History)
+            .WithOne(h => h.Order)
+            .HasForeignKey(h => h.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
-

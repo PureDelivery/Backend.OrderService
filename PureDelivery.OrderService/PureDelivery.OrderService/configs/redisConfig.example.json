@@ -1,0 +1,11 @@
+﻿{
+  "ConnectionString": "127.0.0.1:6379",
+  "Database": 0,
+  "KeyPrefix": "identity:session:",
+  "SessionExpirationMinutes": 60,
+  "ConnectTimeout": 5000,
+  "CommandTimeout": 5000,
+  "ConnectRetry": 3,
+  "Ssl": false,
+  "Password": ""
+}

@@ -1,19 +1,23 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using OrderService.Application.Clients;
+using OrderService.Application.Clients.impl;
 using OrderService.Application.EventHandlers;
 using OrderService.Application.Exceptions;
-using OrderService.Application.Mappers;
 using OrderService.Application.Integration;
+using OrderService.Application.Mappers;
 using OrderService.Application.Repositories;
 using OrderService.Application.Services;
 using OrderService.Application.Services.impl;
-using OrderAppService = OrderService.Application.Services.impl.OrderService;
-using OrderSessionService = OrderService.Application.Services.impl.OrderSessionService;
+using OrderService.Infrastructure.Clients;
 using OrderService.Infrastructure.Data;
 using OrderService.Infrastructure.Repositories;
 using PureDelivery.Common.Configuration.Extensions;
 using PureDelivery.Common.Http.Extensions;
 using PureDelivery.Infrastructure.Redis.Extensions;
 using Serilog;
+using OrderAppService = OrderService.Application.Services.impl.OrderService;
+using OrderSessionService = OrderService.Application.Services.impl.OrderSessionService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,7 +50,26 @@ builder.Services.AddScoped<IOrderMapper, OrderMapper>();
 builder.Services.AddScoped<IOrderService, OrderAppService>();
 builder.Services.AddScoped<IOrderSessionService, OrderSessionService>();
 builder.Services.AddScoped<PaymentCompletedEventHandler>();
-builder.Services.AddSingleton<IOrderIntegrationEventPublisher, LoggingOrderIntegrationEventPublisher>();
+builder.Services.AddScoped<IOrderIntegrationEventPublisher, LoggingOrderIntegrationEventPublisher>();
+
+builder.Services.AddScoped<IRestaurantClient, RestaurantHttpClient>();
+builder.Services.AddScoped<ICatalogClient, CatalogHttpClient>();
+
+builder.Services.AddMassTransit(x =>
+{
+    // x.AddConsumer<OrderPaidConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 builder.Services.AddControllers();
 
