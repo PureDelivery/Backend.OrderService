@@ -17,19 +17,16 @@ public class OrderService : IOrderService
 {
     private readonly IOrderRepository _orderRepository;
     private readonly IOrderMapper _mapper;
-    private readonly IEmailService _emailService;
     private readonly IOrderIntegrationEventPublisher _events;
     private readonly ILogger<OrderService> _logger;
 
     public OrderService(
         IOrderRepository orderRepository,
         IOrderMapper mapper,
-        IEmailService emailService,
         IOrderIntegrationEventPublisher events,
         ILogger<OrderService> logger)
     {
         _orderRepository = orderRepository;
-        _emailService = emailService;
         _mapper = mapper;
         _events = events;
         _logger = logger;
@@ -113,35 +110,17 @@ public class OrderService : IOrderService
 
         await _events.PublishOrderStatusChangedAsync(new OrderStatusChangedEvent
         {
-            OrderId = orderId.ToString(),
-            OldStatus = oldStatus,
-            NewStatus = newStatus,
-            ChangedAt = DateTime.UtcNow,
-            ChangedBy = changedBy
+            OrderId        = orderId.ToString(),
+            CustomerId     = order.CustomerId.ToString(),
+            CustomerEmail  = order.CustomerEmail,
+            CustomerName   = order.CustomerName,
+            RestaurantName = order.RestaurantName,
+            OldStatus      = oldStatus,
+            NewStatus      = newStatus,
+            ChangedAt      = DateTime.UtcNow,
+            ChangedBy      = changedBy
         }, ct);
 
-        if (!string.IsNullOrEmpty(order.CustomerEmail))
-        {
-            var statusLabel = newStatus switch
-            {
-                OrderStatus.InPreparation  => "In Preparation",
-                OrderStatus.ReadyForPickup => "Ready for Pickup",
-                OrderStatus.Delivery       => "Out for Delivery",
-                OrderStatus.Completed      => "Delivered",
-                OrderStatus.Cancelled      => "Cancelled",
-                _                          => newStatus.ToString()
-            };
-
-            await _emailService.SendOrderStatusChangedAsync(
-                order.CustomerEmail,
-                order.CustomerName,
-                order.RestaurantName,
-                orderId,
-                statusLabel,
-                ct);
-        }
-
-        // Re-fetch with items for the full DTO
         var updated = await _orderRepository.GetByIdWithItemsAsync(orderId, ct);
         return BaseResponse<OrderDto>.Success(_mapper.MapToDto(updated!));
     }

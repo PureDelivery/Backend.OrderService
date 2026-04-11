@@ -20,7 +20,6 @@ public class OrderSessionService : IOrderSessionService
     private readonly IOrderIntegrationEventPublisher _integrationEvents;
     private readonly IRestaurantClient _restaurantClient;
     private readonly ICatalogClient _catalogClient;
-    private readonly IEmailService _emailService;
     private readonly ILogger<OrderSessionService> _logger;
 
     public OrderSessionService(
@@ -29,7 +28,6 @@ public class OrderSessionService : IOrderSessionService
         IOrderIntegrationEventPublisher integrationEvents,
         IRestaurantClient restaurantClient,
         ICatalogClient catalogClient,
-        IEmailService emailService,
         ILogger<OrderSessionService> logger)
     {
         _sessionService = sessionService;
@@ -37,7 +35,6 @@ public class OrderSessionService : IOrderSessionService
         _integrationEvents = integrationEvents;
         _restaurantClient = restaurantClient;
         _catalogClient = catalogClient;
-        _emailService = emailService;
         _logger = logger;
     }
 
@@ -123,18 +120,6 @@ public class OrderSessionService : IOrderSessionService
             await _sessionService.SaveSessionAsync(session);
 
             await PublishIntegrationEvents(savedOrder, session, sessionId, ct);
-
-            var customerEmail = session.CustomerSessionDto?.Email;
-            if (!string.IsNullOrEmpty(customerEmail))
-            {
-                await _emailService.SendOrderConfirmationAsync(
-                    customerEmail,
-                    session.CustomerSessionDto?.FullName ?? string.Empty,
-                    savedOrder.RestaurantName,
-                    savedOrder.Id,
-                    savedOrder.Money.TotalAmount,
-                    ct);
-            }
 
             return savedOrder.Id;
         }

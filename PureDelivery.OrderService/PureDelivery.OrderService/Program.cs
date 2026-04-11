@@ -2,7 +2,6 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OrderService.Application.Clients;
 using OrderService.Application.Clients.impl;
-using OrderService.Application.Configuration;
 using OrderService.Application.Consumers;
 using PureDelivery.Common.Configuration.Services;
 using OrderService.Application.EventHandlers;
@@ -54,13 +53,6 @@ builder.Services.AddScoped<IOrderService, OrderAppService>();
 builder.Services.AddScoped<IOrderSessionService, OrderSessionService>();
 builder.Services.AddScoped<PaymentCompletedEventHandler>();
 builder.Services.AddScoped<IOrderIntegrationEventPublisher, LoggingOrderIntegrationEventPublisher>();
-
-builder.Services.AddSingleton<EmailConfig>(sp =>
-{
-    var provider = sp.GetRequiredService<ICustomConfigurationProvider>();
-    return provider.GetConfigurationAsync<EmailConfig>("Email").Result;
-});
-builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddScoped<IRestaurantClient, RestaurantHttpClient>();
 builder.Services.AddScoped<ICatalogClient, CatalogHttpClient>();
