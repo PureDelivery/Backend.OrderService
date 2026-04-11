@@ -23,5 +23,5 @@ public interface IOrderSessionService
     /// <summary>
     /// Після успішної оплати: запис замовлення конкретного ресторану в БД та видалення його з сесії.
     /// </summary>
-    Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, CancellationToken cancellationToken = default);
+    Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, decimal paidAmount, int paymentMethodCode, CancellationToken cancellationToken = default);
 }

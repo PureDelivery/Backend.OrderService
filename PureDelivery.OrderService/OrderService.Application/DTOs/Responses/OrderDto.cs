@@ -2,6 +2,20 @@ using PureDelivery.Shared.Contracts.Domain.Enums;
 
 namespace OrderService.Application.DTOs.Responses;
 
+/// <summary>One step in the order status progress timeline.</summary>
+public class StatusFlowStepDto
+{
+    /// <summary>Enum name, e.g. "InPreparation"</summary>
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>Human-readable label, e.g. "In Preparation"</summary>
+    public string Label { get; set; } = string.Empty;
+
+    public bool IsCompleted { get; set; }
+
+    public bool IsCurrent { get; set; }
+}
+
 public class OrderDto
 {
     public Guid Id { get; set; }
@@ -13,6 +27,7 @@ public class OrderDto
     public List<OrderItemDto> Items { get; set; } = new();
     public Guid DeliveryAddressId { get; set; }
     public string DeliveryAddress { get; set; } = string.Empty;
+    public string DeliveryCity { get; set; } = string.Empty;
     public decimal DeliveryLatitude { get; set; }
     public decimal DeliveryLongitude { get; set; }
     public string? DeliveryInstructions { get; set; }
@@ -22,6 +37,12 @@ public class OrderDto
     public Guid? CourierId { get; set; }
     public string? CourierName { get; set; }
     public OrderStatus Status { get; set; }
+    /// <summary>Enum name as string, e.g. "InPreparation"</summary>
+    public string StatusLabel { get; set; } = string.Empty;
+    /// <summary>Full order lifecycle — backend-driven progress timeline.</summary>
+    public List<StatusFlowStepDto> StatusFlow { get; set; } = new();
+    public string PaymentMethodLabel { get; set; } = string.Empty;
+    public string PaymentStatusLabel { get; set; } = string.Empty;
     public DeliveryStatus DeliveryStatus { get; set; }
     public decimal SubTotal { get; set; }
     public decimal DeliveryFee { get; set; }

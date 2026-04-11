@@ -24,10 +24,15 @@ public class LoggingOrderIntegrationEventPublisher : IOrderIntegrationEventPubli
 
     public async Task PublishOrderCreatedAsync(OrderCreatedEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-            "Integration event OrderCreated: {Payload}",
+        _logger.LogInformation("Integration event OrderCreated: {Payload}",
             JsonSerializer.Serialize(integrationEvent, JsonOptions));
-        
+        await _publishEndpoint.Publish(integrationEvent, cancellationToken);
+    }
+
+    public async Task PublishOrderStatusChangedAsync(OrderStatusChangedEvent integrationEvent, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Integration event OrderStatusChanged: {Payload}",
+            JsonSerializer.Serialize(integrationEvent, JsonOptions));
         await _publishEndpoint.Publish(integrationEvent, cancellationToken);
     }
 }

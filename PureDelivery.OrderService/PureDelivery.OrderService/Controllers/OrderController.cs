@@ -71,7 +71,29 @@ public class OrderController : ControllerBase
     }
 
     /// <summary>
-    /// Обновление статуса заказа (принимает UpdateOrderStatusRequest, но передает параметры в сервис раздельно)
+    /// Получение списка заказов ресторана (для менеджера)
+    /// </summary>
+    [HttpGet("restaurant/{restaurantId:guid}")]
+    public async Task<ActionResult<BaseResponse<PagedResult<OrderDto>>>> GetRestaurantOrders(
+        [FromRoute] Guid restaurantId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await _orderService.GetRestaurantOrdersAsync(restaurantId, page, pageSize, ct);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting orders for restaurant {RestaurantId}", restaurantId);
+            return StatusCode(500, BaseResponse<PagedResult<OrderDto>>.Failure("Internal server error"));
+        }
+    }
+
+    /// <summary>
+    /// Обновление статуса заказа — публикует OrderStatusChangedEvent
     /// </summary>
     [HttpPut("{orderId:guid}/status")]
     public async Task<ActionResult<BaseResponse<OrderDto>>> UpdateStatus(
@@ -81,8 +103,7 @@ public class OrderController : ControllerBase
     {
         try
         {
-            // Здесь мапим объект запроса в параметры твоего интерфейса (Guid, OrderStatus, string, ct)
-            var result = await _orderService.UpdateStatusAsync(orderId, request.Status, request.Notes, ct);
+            var result = await _orderService.UpdateStatusAsync(orderId, request.Status, request.ChangedBy ?? "Manager", request.Notes, ct);
             return Ok(result);
         }
         catch (OrderException ex)

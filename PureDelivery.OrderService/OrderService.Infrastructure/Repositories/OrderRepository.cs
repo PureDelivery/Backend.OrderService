@@ -32,6 +32,7 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.Items)
+                .ThenInclude(oi => oi.SelectedOptions)
             .Where(o => o.CustomerId == customerId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -41,6 +42,7 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.Items)
+                .ThenInclude(oi => oi.SelectedOptions)
             .Where(o => o.RestaurantId == restaurantId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -61,6 +63,12 @@ public class OrderRepository : IOrderRepository
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(cancellationToken);
         return order;
+    }
+
+    public async Task AddHistoryAsync(OrderHistory history, CancellationToken cancellationToken = default)
+    {
+        _context.OrderHistories.Add(history);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Order> UpdateAsync(Order order, CancellationToken cancellationToken = default)

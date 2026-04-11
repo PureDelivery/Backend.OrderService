@@ -7,7 +7,9 @@ public class UpdateOrderStatusRequest
 {
     [Required]
     public OrderStatus Status { get; set; }
-    
+
+    public string? ChangedBy { get; set; }
+
     public string? Notes { get; set; }
 }
 

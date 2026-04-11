@@ -1,17 +1,11 @@
-﻿using Microsoft.Extensions.Options;
-using OrderService.Application.Configuration;
+﻿using OrderService.Application.Configuration;
 using OrderService.Application.Exceptions;
 using PureDelivery.Common.Configuration.Services;
 using PureDelivery.Common.Http.Models;
 using PureDelivery.Common.Http.Services;
+using PureDelivery.Shared.Contracts.Common;
+using PureDelivery.Shared.Contracts.Domain.Models;
 using PureDelivery.Shared.Contracts.DTOs.Restaurants.Responses;
-using System;
-using System.Buffers.Text;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace OrderService.Application.Clients.impl
 {
@@ -35,15 +29,15 @@ namespace OrderService.Application.Clients.impl
             var requestParams = HttpRequestParams.WithBody(baseUrl, endpoint, ids)
                         .WithCancellation(ct);
 
-            var response = await _apiClient.PostAsync<List<MenuItemDetailDto>>(requestParams);
+            var response = await _apiClient.PostAsync<BaseResponse<List<MenuItemDetailDto>>>(requestParams);
 
-            if (!response.IsSuccess)
+            if (!response.IsSuccess || response.Data == null || !response.Data.IsSuccess)
             {
                 throw new OrderException("CATALOG_SERVICE_ERROR",
                     $"Failed to fetch menu items. Status: {response.StatusCode}", 500);
             }
 
-            return response.Data;
+            return response.Data.Data ?? [];
         }
     }
 }

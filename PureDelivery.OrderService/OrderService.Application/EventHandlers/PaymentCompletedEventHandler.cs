@@ -24,6 +24,8 @@ public class PaymentCompletedEventHandler
         string sessionId,
         string restaurantId,
         Guid paymentId,
+        decimal amount,
+        int paymentMethodCode,
         CancellationToken cancellationToken = default)
     {
         try
@@ -31,7 +33,7 @@ public class PaymentCompletedEventHandler
             _logger.LogInformation("Payment completed for session {SessionId}, restaurant {RestaurantId}, payment {PaymentId}",
                 sessionId, restaurantId, paymentId);
 
-            var orderId = await _orderSessionService.SaveOrderFromSessionAsync(sessionId, restaurantId, paymentId, cancellationToken);
+            var orderId = await _orderSessionService.SaveOrderFromSessionAsync(sessionId, restaurantId, paymentId, amount, paymentMethodCode, cancellationToken);
 
             _logger.LogInformation("Order {OrderId} persisted for restaurant {RestaurantId} after payment", orderId, restaurantId);
         }

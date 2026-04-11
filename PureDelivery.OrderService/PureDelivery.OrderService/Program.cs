@@ -55,6 +55,13 @@ builder.Services.AddScoped<IOrderSessionService, OrderSessionService>();
 builder.Services.AddScoped<PaymentCompletedEventHandler>();
 builder.Services.AddScoped<IOrderIntegrationEventPublisher, LoggingOrderIntegrationEventPublisher>();
 
+builder.Services.AddSingleton<EmailConfig>(sp =>
+{
+    var provider = sp.GetRequiredService<ICustomConfigurationProvider>();
+    return provider.GetConfigurationAsync<EmailConfig>("Email").Result;
+});
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 builder.Services.AddScoped<IRestaurantClient, RestaurantHttpClient>();
 builder.Services.AddScoped<ICatalogClient, CatalogHttpClient>();
 

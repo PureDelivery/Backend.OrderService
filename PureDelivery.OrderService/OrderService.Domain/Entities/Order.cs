@@ -6,6 +6,8 @@ public class Order
 {
     public Guid Id { get; set; }
     public Guid CustomerId { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
     public Guid RestaurantId { get; set; }
 
     public string RestaurantName { get; set; } = string.Empty;
@@ -16,6 +18,7 @@ public class Order
     public OrderMoney Money { get; set; } = null!;
 
     public OrderStatus Status { get; set; }
+    public PaymentMethod PaymentMethod { get; set; }
     public PaymentStatus PaymentStatus { get; set; }
 
     public Guid? PaymentId { get; set; }

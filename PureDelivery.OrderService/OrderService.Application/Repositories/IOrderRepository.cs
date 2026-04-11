@@ -11,6 +11,7 @@ public interface IOrderRepository
     Task<IEnumerable<Order>> GetBySessionIdAsync(string sessionId, CancellationToken cancellationToken = default);
     Task<Order> CreateAsync(Order order, CancellationToken cancellationToken = default);
     Task<Order> UpdateAsync(Order order, CancellationToken cancellationToken = default);
+    Task AddHistoryAsync(OrderHistory history, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid orderId, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(Guid orderId, CancellationToken cancellationToken = default);
 }

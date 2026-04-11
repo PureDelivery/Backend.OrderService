@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using OrderService.Application.Clients; // Çäåñü òâîè IRestaurantClient è ICatalogClient
+using OrderService.Application.Clients; // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ IRestaurantClient ï¿½ ICatalogClient
 using OrderService.Application.Exceptions;
 using OrderService.Application.Integration;
 using OrderService.Application.Repositories;
@@ -20,6 +20,7 @@ public class OrderSessionService : IOrderSessionService
     private readonly IOrderIntegrationEventPublisher _integrationEvents;
     private readonly IRestaurantClient _restaurantClient;
     private readonly ICatalogClient _catalogClient;
+    private readonly IEmailService _emailService;
     private readonly ILogger<OrderSessionService> _logger;
 
     public OrderSessionService(
@@ -28,6 +29,7 @@ public class OrderSessionService : IOrderSessionService
         IOrderIntegrationEventPublisher integrationEvents,
         IRestaurantClient restaurantClient,
         ICatalogClient catalogClient,
+        IEmailService emailService,
         ILogger<OrderSessionService> logger)
     {
         _sessionService = sessionService;
@@ -35,6 +37,7 @@ public class OrderSessionService : IOrderSessionService
         _integrationEvents = integrationEvents;
         _restaurantClient = restaurantClient;
         _catalogClient = catalogClient;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -53,7 +56,16 @@ public class OrderSessionService : IOrderSessionService
         var now = DateTime.UtcNow;
         session.OrderStates ??= new Dictionary<string, OrderStateDto>();
 
-        orderState.CreatedAt = session.OrderStates.TryGetValue(orderState.RestaurantId, out var existing) 
+        if (orderState.Items == null || !orderState.Items.Any())
+        {
+            session.OrderStates.Remove(orderState.RestaurantId);
+            session.LastAccessedAt = now;
+            if (!await _sessionService.SaveSessionAsync(session))
+                throw new OrderException("SESSION_SAVE_FAILED", "Failed to persist session", 500);
+            return session;
+        }
+
+        orderState.CreatedAt = session.OrderStates.TryGetValue(orderState.RestaurantId, out var existing)
             ? existing.CreatedAt : now;
         orderState.LastUpdated = now;
 
@@ -86,21 +98,24 @@ public class OrderSessionService : IOrderSessionService
 
     #region Order Creation (SQL Save)
 
-    public async Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, CancellationToken ct = default)
+    public async Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, decimal paidAmount, int paymentMethodCode, CancellationToken ct = default)
     {
         try
         {
-            var session = await _sessionService.GetSessionAsync(sessionId) 
+            var session = await _sessionService.GetSessionAsync(sessionId)
                           ?? throw new OrderException("SESSION_NOT_FOUND", "Session not found", 404);
 
             if (!session.OrderStates.TryGetValue(restaurantId, out var stateDto))
                 throw new OrderException("ORDER_INVALID", "Cart not found", 400);
 
-            var restaurantInfo = await _restaurantClient.GetRestaurantAsync(restaurantId, ct);
             var menuItemIds = stateDto.Items.Select(i => i.Id).ToList();
-            var menuItemsInfo = await _catalogClient.GetMenuItemsAsync(menuItemIds, ct);
+            var restaurantTask = _restaurantClient.GetRestaurantAsync(restaurantId, ct);
+            var menuItemsTask = _catalogClient.GetMenuItemsAsync(menuItemIds, ct);
+            await Task.WhenAll(restaurantTask, menuItemsTask);
+            var restaurantInfo = await restaurantTask;
+            var menuItemsInfo = await menuItemsTask;
 
-            var order = MapToEntity(stateDto, session, restaurantInfo, menuItemsInfo, paymentId);
+            var order = MapToEntity(stateDto, session, restaurantInfo, menuItemsInfo, paymentId, paidAmount, paymentMethodCode);
 
             var savedOrder = await _orderRepository.CreateAsync(order, ct);
 
@@ -108,6 +123,18 @@ public class OrderSessionService : IOrderSessionService
             await _sessionService.SaveSessionAsync(session);
 
             await PublishIntegrationEvents(savedOrder, session, sessionId, ct);
+
+            var customerEmail = session.CustomerSessionDto?.Email;
+            if (!string.IsNullOrEmpty(customerEmail))
+            {
+                await _emailService.SendOrderConfirmationAsync(
+                    customerEmail,
+                    session.CustomerSessionDto?.FullName ?? string.Empty,
+                    savedOrder.RestaurantName,
+                    savedOrder.Id,
+                    savedOrder.Money.TotalAmount,
+                    ct);
+            }
 
             return savedOrder.Id;
         }
@@ -119,11 +146,13 @@ public class OrderSessionService : IOrderSessionService
     }
 
     private Order MapToEntity(
-        OrderStateDto state, 
+        OrderStateDto state,
         PureDelivery.Shared.Contracts.DTOs.SessionDTO.SessionDto session,
         RestaurantDetailDto restInfo,
-        List<MenuItemDetailDto> menuInfo, 
-        Guid? paymentId)
+        List<MenuItemDetailDto> menuInfo,
+        Guid? paymentId,
+        decimal paidAmount,
+        int paymentMethodCode)
     {
         var now = DateTime.UtcNow;
 
@@ -131,13 +160,16 @@ public class OrderSessionService : IOrderSessionService
         {
             Id = Guid.NewGuid(),
             CustomerId = session.CustomerSessionDto?.Id ?? Guid.Empty,
-            RestaurantId = Guid.Parse(state.RestaurantId!),
+            CustomerEmail = session.CustomerSessionDto?.Email ?? string.Empty,
+            CustomerName = session.CustomerSessionDto?.FullName ?? string.Empty,
+            RestaurantId = restInfo.Id,
             RestaurantName = restInfo.Name,
             Status = OrderStatus.Confirmed,
             CreatedAt = now,
             SessionId = session.SessionId,
             PaymentId = paymentId,
-            PaymentStatus = state.Payment?.Status ?? PaymentStatus.Pending,
+            PaymentMethod = (PaymentMethod)paymentMethodCode,
+            PaymentStatus = paymentId.HasValue ? PaymentStatus.Completed : PaymentStatus.Pending,
             
             DeliveryAddress = new AddressSnapshot
             {
@@ -154,7 +186,7 @@ public class OrderSessionService : IOrderSessionService
 
         foreach (var itemSession in state.Items)
         {
-            var catalogItem = menuInfo.FirstOrDefault(m => m.Id.ToString() == itemSession.Id);
+            var catalogItem = menuInfo.FirstOrDefault(m => m.Id == Guid.Parse(itemSession.Id));
             if (catalogItem == null) continue;
 
             var orderItem = new OrderItem
@@ -186,17 +218,17 @@ public class OrderSessionService : IOrderSessionService
             order.Items.Add(orderItem);
         }
 
-        // ÌÀÏÏÈÍÃ ÄÅÍÅÃ (MONEY VALUE OBJECT)
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ (MONEY VALUE OBJECT)
         order.Money = new OrderMoney
         {
             SubTotal = order.Items.Sum(i => i.TotalPrice),
-            DeliveryFee = state.Payment?.DeliveryFee ?? 50,
+            DeliveryFee = state.Payment?.DeliveryFee ?? 0,
             Discount = state.Payment?.Discount ?? 0,
-            Tax = 0 // Äîáàâü ñâîþ ëîãèêó ðàñ÷åòà íàëîãà
+            Tax = 0 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         };
         order.Money.TotalAmount = order.Money.SubTotal + order.Money.DeliveryFee - order.Money.Discount;
 
-        // ÏÅÐÂÀß ÇÀÏÈÑÜ Â ÈÑÒÎÐÈÞ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         order.History.Add(new OrderHistory
         {
             Status = OrderStatus.Confirmed,
@@ -214,7 +246,10 @@ public class OrderSessionService : IOrderSessionService
         {
             OrderId = savedOrder.Id.ToString(),
             UserId = session.UserId,
+            CustomerEmail = session.CustomerSessionDto?.Email ?? string.Empty,
+            CustomerName = session.CustomerSessionDto?.FullName ?? string.Empty,
             RestaurantId = savedOrder.RestaurantId.ToString(),
+            RestaurantName = savedOrder.RestaurantName,
             TotalAmount = savedOrder.Money.TotalAmount,
             CreatedAt = savedOrder.CreatedAt,
             SessionId = sessionId

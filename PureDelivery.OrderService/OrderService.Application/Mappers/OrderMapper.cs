@@ -7,8 +7,26 @@ namespace OrderService.Application.Mappers;
 
 public class OrderMapper : IOrderMapper
 {
+    // Steps visible to the customer вЂ” internal Cart/Checkout/Payment are pre-order and not shown
+    private static readonly (OrderStatus Status, string Label)[] FlowSteps =
+    [
+        (OrderStatus.Confirmed,       "Confirmed"),
+        (OrderStatus.InPreparation,   "In Preparation"),
+        (OrderStatus.ReadyForPickup,  "Ready for Pickup"),
+        (OrderStatus.Delivery,        "Out for Delivery"),
+        (OrderStatus.Completed,       "Delivered"),
+    ];
+
     public OrderDto MapToDto(Order order)
     {
+        var addr = order.DeliveryAddress;
+        var fullAddress = addr?.FullAddressString is { Length: > 0 } s && s != "Unknown"
+            ? s
+            : BuildAddressFallback(addr);
+
+        var statusLabel = order.Status.ToString();
+        var statusFlow  = BuildStatusFlow(order.Status);
+
         return new OrderDto
         {
             Id = order.Id,
@@ -17,28 +35,61 @@ public class OrderMapper : IOrderMapper
             RestaurantName = order.RestaurantName,
             SessionId = order.SessionId,
             PaymentId = order.PaymentId,
-            Status = order.Status,
+            PaymentMethod = order.PaymentMethod,
+            PaymentMethodLabel = order.PaymentMethod.ToString(),
             PaymentStatus = order.PaymentStatus,
+            PaymentStatusLabel = order.PaymentStatus.ToString(),
+            Status = order.Status,
+            StatusLabel = statusLabel,
+            StatusFlow = statusFlow,
             CreatedAt = order.CreatedAt,
 
-            // Мапим из вложенного объекта Money
-            SubTotal = order.Money.SubTotal,
-            DeliveryFee = order.Money.DeliveryFee,
-            Tax = order.Money.Tax,
-            Discount = order.Money.Discount,
-            TotalAmount = order.Money.TotalAmount,
+            DeliveryAddress = fullAddress,
+            DeliveryCity = addr?.City ?? string.Empty,
+            DeliveryLatitude = addr?.Latitude ?? 0,
+            DeliveryLongitude = addr?.Longitude ?? 0,
 
-            // Мапим из вложенного объекта DeliveryAddress (AddressSnapshot)
-            DeliveryAddress = order.DeliveryAddress.FullAddressString,
-            DeliveryLatitude = order.DeliveryAddress.Latitude,
-            DeliveryLongitude = order.DeliveryAddress.Longitude,
+            SubTotal = order.Money?.SubTotal ?? 0,
+            DeliveryFee = order.Money?.DeliveryFee ?? 0,
+            Tax = order.Money?.Tax ?? 0,
+            Discount = order.Money?.Discount ?? 0,
+            TotalAmount = order.Money?.TotalAmount ?? 0,
 
             Items = order.Items.Select(MapItemToDto).ToList()
-            // Убрал CustomerName, Email и прочее, так как в твоей новой модели Order их нет
         };
     }
 
-    private OrderItemDto MapItemToDto(OrderItem item)
+    private static List<StatusFlowStepDto> BuildStatusFlow(OrderStatus current)
+    {
+        if (current == OrderStatus.Cancelled)
+        {
+            return [new StatusFlowStepDto
+            {
+                Status = "Cancelled",
+                Label = "Cancelled",
+                IsCompleted = true,
+                IsCurrent = true
+            }];
+        }
+
+        return FlowSteps.Select(step => new StatusFlowStepDto
+        {
+            Status = step.Status.ToString(),
+            Label = step.Label,
+            IsCompleted = current >= step.Status,
+            IsCurrent = current == step.Status,
+        }).ToList();
+    }
+
+    private static string BuildAddressFallback(AddressSnapshot? addr)
+    {
+        if (addr == null) return string.Empty;
+        var parts = new[] { addr.Building, addr.Apartment, addr.City }
+            .Where(p => !string.IsNullOrWhiteSpace(p));
+        return string.Join(", ", parts);
+    }
+
+    private static OrderItemDto MapItemToDto(OrderItem item)
     {
         return new OrderItemDto
         {
@@ -54,7 +105,7 @@ public class OrderMapper : IOrderMapper
         };
     }
 
-    private OrderItemOptionDto MapOptionToDto(OrderItemOption option)
+    private static OrderItemOptionDto MapOptionToDto(OrderItemOption option)
     {
         return new OrderItemOptionDto
         {
@@ -67,8 +118,6 @@ public class OrderMapper : IOrderMapper
         };
     }
 
-    // Этот метод теперь почти не нужен, так как мы создаем заказ через OrderSessionService
-    // Но если оставляешь, мапь только то, что есть в модели
     public Order MapFromCreateRequest(CreateOrderRequest request)
     {
         return new Order
@@ -82,18 +131,18 @@ public class OrderMapper : IOrderMapper
         };
     }
 
-    private OrderItem MapItemFromRequest(OrderItemRequest request)
+    private static OrderItem MapItemFromRequest(OrderItemRequest request)
     {
         return new OrderItem
         {
             MenuItemId = request.MenuItemId,
             Quantity = request.Quantity,
             SpecialInstructions = request.SpecialInstructions,
-            SelectedOptions = request.SelectedOptions?.Select(MapOptionFromRequest).ToList() ?? new List<OrderItemOption>()
+            SelectedOptions = request.SelectedOptions?.Select(MapOptionFromRequest).ToList() ?? []
         };
     }
 
-    private OrderItemOption MapOptionFromRequest(OrderItemOptionRequest request)
+    private static OrderItemOption MapOptionFromRequest(OrderItemOptionRequest request)
     {
         return new OrderItemOption
         {

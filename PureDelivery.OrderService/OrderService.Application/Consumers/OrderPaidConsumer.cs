@@ -25,6 +25,8 @@ public class OrderPaidConsumer(
             evt.SessionId,
             evt.RestaurantId,
             evt.PaymentId,
+            evt.Amount,
+            evt.PaymentMethod,
             context.CancellationToken);
     }
 }

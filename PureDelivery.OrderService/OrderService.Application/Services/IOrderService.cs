@@ -15,5 +15,7 @@ public interface IOrderService
 
     Task<BaseResponse<PagedResult<OrderDto>>> GetCustomerOrdersAsync(Guid customerId, int page, int pageSize, CancellationToken ct);
 
-    Task<BaseResponse<OrderDto>> UpdateStatusAsync(Guid orderId, OrderStatus newStatus, string comment, CancellationToken ct);
+    Task<BaseResponse<PagedResult<OrderDto>>> GetRestaurantOrdersAsync(Guid restaurantId, int page, int pageSize, CancellationToken ct);
+
+    Task<BaseResponse<OrderDto>> UpdateStatusAsync(Guid orderId, OrderStatus newStatus, string changedBy, string comment, CancellationToken ct);
 }
