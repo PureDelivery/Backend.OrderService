@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using OrderService.Application.Configuration;
 using OrderService.Application.Exceptions;
+using PureDelivery.Common.Configuration.Services;
 using PureDelivery.Common.Http.Models;
 using PureDelivery.Common.Http.Services;
 using PureDelivery.Shared.Contracts.DTOs.Restaurants.Responses;
@@ -19,16 +20,17 @@ namespace OrderService.Application.Clients.impl
         private readonly IHttpApiClient _apiClient;
         private readonly ExternalServicesConfig _config;
 
-        public CatalogHttpClient(IHttpApiClient apiClient, IOptions<ExternalServicesConfig> config)
+        public CatalogHttpClient(IHttpApiClient apiClient, ICustomConfigurationProvider configProvider)
         {
             _apiClient = apiClient;
-            _config = config.Value;
+            _config = configProvider.GetConfigurationAsync<ExternalServicesConfig>("ExternalServices").Result
+                ?? throw new InvalidOperationException("Failed to load ExternalServicesConfig");
         }
 
         public async Task<List<MenuItemDetailDto>> GetMenuItemsAsync(List<string> ids, CancellationToken ct = default)
         {
             var baseUrl = _config.CatalogService.BaseUrl;
-            var endpoint = _config.CatalogService.GetBulkItemsEndpoint;
+            var endpoint = _config.CatalogService.GetMenuItemsBulkEndpoint;
 
             var requestParams = HttpRequestParams.WithBody(baseUrl, endpoint, ids)
                         .WithCancellation(ct);

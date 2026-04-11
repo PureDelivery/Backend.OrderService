@@ -2,6 +2,7 @@
 using OrderService.Application.Clients;
 using OrderService.Application.Configuration; // Твой класс ExternalServicesConfig
 using OrderService.Application.Exceptions;
+using PureDelivery.Common.Configuration.Services;
 using PureDelivery.Common.Http.Models;
 using PureDelivery.Common.Http.Services;
 using PureDelivery.Shared.Contracts.DTOs.Restaurants.Responses;
@@ -13,15 +14,16 @@ public class RestaurantHttpClient : IRestaurantClient
     private readonly IHttpApiClient _apiClient;
     private readonly ExternalServicesConfig _config;
 
-    public RestaurantHttpClient(IHttpApiClient apiClient, IOptions<ExternalServicesConfig> config)
+    public RestaurantHttpClient(IHttpApiClient apiClient, ICustomConfigurationProvider configProvider)
     {
         _apiClient = apiClient;
-        _config = config.Value;
+        _config = configProvider.GetConfigurationAsync<ExternalServicesConfig>("ExternalServices").Result;
     }
 
     public async Task<RestaurantDetailDto> GetRestaurantAsync(string restaurantId, CancellationToken ct = default)
     {
-        var endpoint = $"{_config.RestaurantService.GetDetailsEndpoint}/{restaurantId}";
+        var endpoint = _config.RestaurantService.GetRestaurantEndpoint
+            .Replace("{id}", restaurantId);
 
         var requestParams = HttpRequestParams.Create(_config.RestaurantService.BaseUrl, endpoint)
             .WithCancellation(ct);

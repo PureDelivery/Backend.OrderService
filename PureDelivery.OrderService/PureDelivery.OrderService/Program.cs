@@ -2,6 +2,9 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OrderService.Application.Clients;
 using OrderService.Application.Clients.impl;
+using OrderService.Application.Configuration;
+using OrderService.Application.Consumers;
+using PureDelivery.Common.Configuration.Services;
 using OrderService.Application.EventHandlers;
 using OrderService.Application.Exceptions;
 using OrderService.Application.Integration;
@@ -55,16 +58,27 @@ builder.Services.AddScoped<IOrderIntegrationEventPublisher, LoggingOrderIntegrat
 builder.Services.AddScoped<IRestaurantClient, RestaurantHttpClient>();
 builder.Services.AddScoped<ICatalogClient, CatalogHttpClient>();
 
+builder.Services.AddConfigurationProvider(builder.Configuration);
+
+builder.Services.AddSingleton<RabbitMqConfiguration>(sp =>
+{
+    var provider = sp.GetRequiredService<ICustomConfigurationProvider>();
+    var cfg = provider.GetConfigurationAsync<RabbitMqConfiguration>("RabbitMQ").Result;
+    cfg.Validate();
+    return cfg;
+});
+
 builder.Services.AddMassTransit(x =>
 {
-    // x.AddConsumer<OrderPaidConsumer>();
+    x.AddConsumer<OrderPaidConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        cfg.Host("localhost", "/", h =>
+        var rabbitCfg = context.GetRequiredService<RabbitMqConfiguration>();
+        cfg.Host(rabbitCfg.Host, rabbitCfg.VirtualHost, h =>
         {
-            h.Username("guest");
-            h.Password("guest");
+            h.Username(rabbitCfg.Username);
+            h.Password(rabbitCfg.Password);
         });
 
         cfg.ConfigureEndpoints(context);
