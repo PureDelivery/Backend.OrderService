@@ -30,7 +30,9 @@ public class OrderMapper : IOrderMapper
         return new OrderDto
         {
             Id = order.Id,
+            OrderNumber = order.OrderNumber,
             CustomerId = order.CustomerId,
+            CustomerName = order.CustomerName,
             RestaurantId = order.RestaurantId,
             RestaurantName = order.RestaurantName,
             SessionId = order.SessionId,
@@ -126,6 +128,7 @@ public class OrderMapper : IOrderMapper
             RestaurantId = request.RestaurantId,
             SessionId = request.SessionId,
             Status = OrderStatus.Cart,
+            OrderNumber = Random.Shared.Next(100000, 1000000).ToString(),
             CreatedAt = DateTime.UtcNow,
             Items = request.Items.Select(MapItemFromRequest).ToList()
         };

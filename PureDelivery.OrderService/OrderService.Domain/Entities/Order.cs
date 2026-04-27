@@ -24,6 +24,9 @@ public class Order
     public Guid? PaymentId { get; set; }
     public string? SessionId { get; set; }
 
+    /// <summary>Short human-readable order identifier, e.g. "483921". Visible to restaurant, courier, customer.</summary>
+    public string OrderNumber { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; }
     public virtual ICollection<OrderHistory> History { get; set; } = new List<OrderHistory>();
 }

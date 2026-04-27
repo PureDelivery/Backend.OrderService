@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OrderService.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using OrderService.Infrastructure.Data;
 namespace OrderService.Infrastructure.Migrations
 {
     [DbContext(typeof(OrderDbContext))]
-    partial class OrderDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413085526_OrderNumber")]
+    partial class OrderNumber
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -232,12 +235,14 @@ namespace OrderService.Infrastructure.Migrations
                                 .HasColumnType("nvarchar(500)")
                                 .HasColumnName("DeliveryAddress");
 
-                            b1.Property<double>("Latitude")
-                                .HasColumnType("float")
+                            b1.Property<decimal>("Latitude")
+                                .HasPrecision(18, 10)
+                                .HasColumnType("decimal(18,10)")
                                 .HasColumnName("DeliveryLatitude");
 
-                            b1.Property<double>("Longitude")
-                                .HasColumnType("float")
+                            b1.Property<decimal>("Longitude")
+                                .HasPrecision(18, 10)
+                                .HasColumnType("decimal(18,10)")
                                 .HasColumnName("DeliveryLongitude");
 
                             b1.HasKey("OrderId");

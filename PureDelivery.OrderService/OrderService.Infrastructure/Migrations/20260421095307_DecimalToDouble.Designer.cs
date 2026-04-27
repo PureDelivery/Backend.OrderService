@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OrderService.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using OrderService.Infrastructure.Data;
 namespace OrderService.Infrastructure.Migrations
 {
     [DbContext(typeof(OrderDbContext))]
-    partial class OrderDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260421095307_DecimalToDouble")]
+    partial class DecimalToDouble
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -233,11 +236,13 @@ namespace OrderService.Infrastructure.Migrations
                                 .HasColumnName("DeliveryAddress");
 
                             b1.Property<double>("Latitude")
-                                .HasColumnType("float")
+                                .HasPrecision(18, 10)
+                                .HasColumnType("float(18)")
                                 .HasColumnName("DeliveryLatitude");
 
                             b1.Property<double>("Longitude")
-                                .HasColumnType("float")
+                                .HasPrecision(18, 10)
+                                .HasColumnType("float(18)")
                                 .HasColumnName("DeliveryLongitude");
 
                             b1.HasKey("OrderId");

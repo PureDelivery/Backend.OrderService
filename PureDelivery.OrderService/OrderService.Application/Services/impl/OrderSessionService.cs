@@ -9,6 +9,7 @@ using PureDelivery.Shared.Contracts.Domain.Enums;
 using PureDelivery.Shared.Contracts.DTOs.Restaurants.Responses;
 using PureDelivery.Shared.Contracts.DTOs.Session;
 using PureDelivery.Shared.Contracts.DTOs.SessionDTO;
+using PureDelivery.Shared.Contracts.Events.Loyalty;
 using PureDelivery.Shared.Contracts.Events.Orders;
 
 namespace OrderService.Application.Services.impl;
@@ -95,7 +96,7 @@ public class OrderSessionService : IOrderSessionService
 
     #region Order Creation (SQL Save)
 
-    public async Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, decimal paidAmount, int paymentMethodCode, CancellationToken ct = default)
+    public async Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, decimal paidAmount, PaymentMethod paymentMethod, Guid? orderId = null, CancellationToken ct = default)
     {
         try
         {
@@ -112,14 +113,14 @@ public class OrderSessionService : IOrderSessionService
             var restaurantInfo = await restaurantTask;
             var menuItemsInfo = await menuItemsTask;
 
-            var order = MapToEntity(stateDto, session, restaurantInfo, menuItemsInfo, paymentId, paidAmount, paymentMethodCode);
+            var order = MapToEntity(stateDto, session, restaurantInfo, menuItemsInfo, paymentId, paidAmount, paymentMethod, orderId);
 
             var savedOrder = await _orderRepository.CreateAsync(order, ct);
 
             session.OrderStates.Remove(restaurantId);
             await _sessionService.SaveSessionAsync(session);
 
-            await PublishIntegrationEvents(savedOrder, session, sessionId, ct);
+            await PublishIntegrationEvents(savedOrder, session, sessionId, restaurantInfo, ct);
 
             return savedOrder.Id;
         }
@@ -137,13 +138,15 @@ public class OrderSessionService : IOrderSessionService
         List<MenuItemDetailDto> menuInfo,
         Guid? paymentId,
         decimal paidAmount,
-        int paymentMethodCode)
+        PaymentMethod paymentMethod,
+        Guid? orderId = null)
     {
         var now = DateTime.UtcNow;
 
         var order = new Order
         {
-            Id = Guid.NewGuid(),
+            Id = orderId ?? Guid.NewGuid(),
+            OrderNumber = Random.Shared.Next(100000, 1000000).ToString(),
             CustomerId = session.CustomerSessionDto?.Id ?? Guid.Empty,
             CustomerEmail = session.CustomerSessionDto?.Email ?? string.Empty,
             CustomerName = session.CustomerSessionDto?.FullName ?? string.Empty,
@@ -153,7 +156,7 @@ public class OrderSessionService : IOrderSessionService
             CreatedAt = now,
             SessionId = session.SessionId,
             PaymentId = paymentId,
-            PaymentMethod = (PaymentMethod)paymentMethodCode,
+            PaymentMethod = paymentMethod,
             PaymentStatus = paymentId.HasValue ? PaymentStatus.Completed : PaymentStatus.Pending,
             
             DeliveryAddress = new AddressSnapshot
@@ -164,8 +167,8 @@ public class OrderSessionService : IOrderSessionService
                 Building = state.Delivery?.DeliveryAddress?.Building ?? string.Empty,
                 Apartment = state.Delivery?.DeliveryAddress?.Apartment ?? string.Empty,
                 Floor = state.Delivery?.DeliveryAddress?.Floor ?? string.Empty,
-                Latitude = (decimal)(state.Delivery?.DeliveryAddress?.Latitude ?? 0),
-                Longitude = (decimal)(state.Delivery?.DeliveryAddress?.Longitude ?? 0)
+                Latitude = state.Delivery?.DeliveryAddress?.Latitude ?? 0,
+                Longitude = state.Delivery?.DeliveryAddress?.Longitude ?? 0
             }
         };
 
@@ -225,19 +228,46 @@ public class OrderSessionService : IOrderSessionService
         return order;
     }
 
-    private async Task PublishIntegrationEvents(Order savedOrder, PureDelivery.Shared.Contracts.DTOs.SessionDTO.SessionDto session, string sessionId, CancellationToken ct)
+    private async Task PublishIntegrationEvents(Order savedOrder, PureDelivery.Shared.Contracts.DTOs.SessionDTO.SessionDto session, string sessionId, RestaurantDetailDto restaurantInfo, CancellationToken ct)
     {
-        await _integrationEvents.PublishOrderCreatedAsync(new OrderCreatedEvent
+        if (savedOrder == null) return;
+
+        // Loyalty points: якщо ресторан бере участь у програмі лояльності
+        if (restaurantInfo.ParticipatesInLoyalty && savedOrder.CustomerId != Guid.Empty)
+        {
+            var pointsToAdd = Math.Round(savedOrder.Money.SubTotal * (restaurantInfo.LoyaltyPointsRate / 100), 2);
+            if (pointsToAdd > 0)
+            {
+                await _integrationEvents.PublishLoyaltyEarnedAsync(new LoyaltyEarnedByOrderEvent
+                {
+                    OrderId = savedOrder.Id,
+                    UserId = savedOrder.CustomerId,
+                    PointsToAdd = pointsToAdd
+                }, ct);
+            }
+        }
+
+        await _integrationEvents.PublishOrderProcessedAsync(new OrderProcessedEvent
         {
             OrderId = savedOrder.Id.ToString(),
-            UserId = session.UserId,
+            OrderNumber = savedOrder.OrderNumber,
+            SessionId = sessionId,
+            CustomerId = savedOrder.CustomerId.ToString(),
             CustomerEmail = session.CustomerSessionDto?.Email ?? string.Empty,
             CustomerName = session.CustomerSessionDto?.FullName ?? string.Empty,
             RestaurantId = savedOrder.RestaurantId.ToString(),
             RestaurantName = savedOrder.RestaurantName,
             TotalAmount = savedOrder.Money.TotalAmount,
-            CreatedAt = savedOrder.CreatedAt,
-            SessionId = sessionId
+            DeliveryFee = savedOrder.Money.DeliveryFee,
+            DeliveryLatitude = savedOrder.DeliveryAddress.Latitude,
+            DeliveryLongitude = savedOrder.DeliveryAddress.Longitude,
+            DeliveryAddress = savedOrder.DeliveryAddress.FullAddressString,
+            DeliveryCity = savedOrder.DeliveryAddress.City,
+            RestaurantLatitude = restaurantInfo.Address.Latitude,
+            RestaurantLongitude = restaurantInfo.Address.Longitude,
+            RestaurantAddress = restaurantInfo.Address.FullAddress,
+            RestaurantCity = restaurantInfo.Address.City,
+            CreatedAt = savedOrder.CreatedAt
         }, ct);
     }
 

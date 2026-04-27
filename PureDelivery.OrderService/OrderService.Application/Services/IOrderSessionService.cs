@@ -1,3 +1,4 @@
+using PureDelivery.Shared.Contracts.Domain.Enums;
 using PureDelivery.Shared.Contracts.DTOs.Session;
 using SessionDto = PureDelivery.Shared.Contracts.DTOs.SessionDTO.SessionDto;
 
@@ -22,6 +23,7 @@ public interface IOrderSessionService
 
     /// <summary>
     /// Після успішної оплати: запис замовлення конкретного ресторану в БД та видалення його з сесії.
+    /// <paramref name="orderId"/> — pre-generated ID from PaymentService (used for loyalty point correlation).
     /// </summary>
-    Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, decimal paidAmount, int paymentMethodCode, CancellationToken cancellationToken = default);
+    Task<Guid> SaveOrderFromSessionAsync(string sessionId, string restaurantId, Guid? paymentId, decimal paidAmount, PaymentMethod paymentMethod, Guid? orderId = null, CancellationToken cancellationToken = default);
 }

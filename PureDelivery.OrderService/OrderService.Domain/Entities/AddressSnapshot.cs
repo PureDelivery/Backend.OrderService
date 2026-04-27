@@ -8,6 +8,6 @@ public class AddressSnapshot
     public string Building { get; set; } = string.Empty;
     public string Apartment { get; set; } = string.Empty;
     public string Floor { get; set; } = string.Empty;
-    public decimal Latitude { get; set; }
-    public decimal Longitude { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
 }

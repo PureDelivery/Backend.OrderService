@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using OrderService.Application.Integration;
 using OrderService.Application.Services;
+using PureDelivery.Shared.Contracts.Domain.Enums;
 
 namespace OrderService.Application.EventHandlers;
 
@@ -25,7 +26,8 @@ public class PaymentCompletedEventHandler
         string restaurantId,
         Guid paymentId,
         decimal amount,
-        int paymentMethodCode,
+        PaymentMethod paymentMethod,
+        Guid? preGeneratedOrderId = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -33,7 +35,7 @@ public class PaymentCompletedEventHandler
             _logger.LogInformation("Payment completed for session {SessionId}, restaurant {RestaurantId}, payment {PaymentId}",
                 sessionId, restaurantId, paymentId);
 
-            var orderId = await _orderSessionService.SaveOrderFromSessionAsync(sessionId, restaurantId, paymentId, amount, paymentMethodCode, cancellationToken);
+            var orderId = await _orderSessionService.SaveOrderFromSessionAsync(sessionId, restaurantId, paymentId, amount, paymentMethod, preGeneratedOrderId, cancellationToken);
 
             _logger.LogInformation("Order {OrderId} persisted for restaurant {RestaurantId} after payment", orderId, restaurantId);
         }

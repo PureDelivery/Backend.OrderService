@@ -27,6 +27,7 @@ public class OrderPaidConsumer(
             evt.PaymentId,
             evt.Amount,
             evt.PaymentMethod,
+            evt.OrderId == Guid.Empty ? null : evt.OrderId,
             context.CancellationToken);
     }
 }

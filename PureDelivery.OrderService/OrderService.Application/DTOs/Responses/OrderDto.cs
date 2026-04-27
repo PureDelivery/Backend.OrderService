@@ -19,6 +19,7 @@ public class StatusFlowStepDto
 public class OrderDto
 {
     public Guid Id { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
     public Guid CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerEmail { get; set; } = string.Empty;
@@ -28,8 +29,8 @@ public class OrderDto
     public Guid DeliveryAddressId { get; set; }
     public string DeliveryAddress { get; set; } = string.Empty;
     public string DeliveryCity { get; set; } = string.Empty;
-    public decimal DeliveryLatitude { get; set; }
-    public decimal DeliveryLongitude { get; set; }
+    public double DeliveryLatitude { get; set; }
+    public double DeliveryLongitude { get; set; }
     public string? DeliveryInstructions { get; set; }
     public Guid? PaymentId { get; set; }
     public PaymentMethod PaymentMethod { get; set; }

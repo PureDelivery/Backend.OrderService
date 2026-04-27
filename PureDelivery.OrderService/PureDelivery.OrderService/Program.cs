@@ -20,6 +20,7 @@ using PureDelivery.Infrastructure.Redis.Extensions;
 using Serilog;
 using OrderAppService = OrderService.Application.Services.impl.OrderService;
 using OrderSessionService = OrderService.Application.Services.impl.OrderSessionService;
+using PureDelivery.Shared.Contracts.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,9 @@ builder.Services.AddSingleton<RabbitMqConfiguration>(sp =>
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<OrderPaidConsumer>();
+    x.AddConsumer<CourierAssignedConsumer>();
+    x.AddConsumer<OrderPickedUpConsumer>();
+    x.AddConsumer<OrderDeliveredConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
